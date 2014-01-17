@@ -12,14 +12,10 @@ import net.sf.geographiclib.PolygonResult;
 
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFinder;
-import org.geotools.data.DefaultTransaction;
-import org.geotools.data.Transaction;
 import org.geotools.data.shapefile.ShapefileDataStore;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
-import org.geotools.data.simple.SimpleFeatureStore;
-import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.FeatureCollection;
 import org.geotools.feature.simple.SimpleFeatureBuilder;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
@@ -48,7 +44,8 @@ import de.tudresden.gis.algorithm.CRSUtils.CRSType;
 
 
 /**
- *
+ * Planimetry functions. Computes area and perimeter of geographic shapes on an ellipsoid.
+ * 
  * @author Matthias Mueller
  */
 public class Planimeter {
@@ -58,18 +55,13 @@ public class Planimeter {
 	
 	private static final int PERI_POS = 0;
 	private static final int AREA_POS = 1;
-
-
-	//	public Planimeter(String shapeFileName, String outFileName) throws IOException, InterruptedException{
-	//
-	//
-	//	}
+	
+	public static final int MAX_ATTRIB_SIZE = 1024 * 1024 * 50;
 
 	public static void computePlanimetry(String shapeFileName, String outFileName) throws IOException {
 		Geometries geometryType;
 		MathTransform transform = null;
 		Geodesic earth;
-
 
 		// load shapefile
 		File shapeFile = new File(shapeFileName);
@@ -118,32 +110,33 @@ public class Planimeter {
 		// create new Shapefile DS for writing
 		SimpleFeatureType destType = createDestType(featureSource.getSchema(), geometryType);
 		ShapefileDataStore dstDS = createShapefile(outFileName, destType);
-
+		ShapefileWriter shpWriter = new ShapefileWriter(dstDS, destType, MAX_ATTRIB_SIZE);
 		
 		// initialize variable for reading / writing in the loop
-		DefaultFeatureCollection dstCollection = new DefaultFeatureCollection("internal", destType);
+//		DefaultFeatureCollection dstCollection = new DefaultFeatureCollection("internal", destType);
 		SimpleFeatureBuilder sfb = new SimpleFeatureBuilder(destType);
 		SimpleFeatureIterator features = collection.features();
 		SimpleFeature feature;
 		while (features.hasNext()){
 			feature = features.next();
 			SimpleFeature newFeature = processFeature(feature, sfb, geometryType, earth, transform);
-			dstCollection.add(newFeature);
+//			dstCollection.add(newFeature);
+			shpWriter.addFeature(newFeature);
 		}
 
 		// commit transaction
-		Transaction transaction = new DefaultTransaction();
-		SimpleFeatureStore featureStore = (SimpleFeatureStore) dstDS.getFeatureSource();
-		featureStore.setTransaction(transaction);
-		try {
-            featureStore.addFeatures(dstCollection);
-            transaction.commit();
-        } catch (Exception problem) {
-            problem.printStackTrace();
-            transaction.rollback();
-        } finally {
-            transaction.close();
-        }
+//		Transaction transaction = new DefaultTransaction();
+//		SimpleFeatureStore featureStore = (SimpleFeatureStore) dstDS.getFeatureSource();
+//		featureStore.setTransaction(transaction);
+//		try {
+//            featureStore.addFeatures(dstCollection);
+//            transaction.commit();
+//        } catch (Exception problem) {
+//            problem.printStackTrace();
+//            transaction.rollback();
+//        } finally {
+//            transaction.close();
+//        }
 
 		dstDS.dispose();
 		features.close();
@@ -268,7 +261,6 @@ public class Planimeter {
 		double area = 0.0;
 		
 		int geomCnt = polygon.getNumGeometries();
-		
 		PolygonArea pArea = new PolygonArea(earth, false);
 		// compute outer ring
 		for (Coordinate c : polygon.getGeometryN(0).getCoordinates()){
